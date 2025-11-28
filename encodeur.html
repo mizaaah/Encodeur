@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Utilitaire de Sécurité - Encoder/Hasher</title>
+    <!-- Chargement de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Styles pour donner un look technique et sombre */
+        body {
+            background-color: #1a202c; /* bg-gray-900 */
+            color: #e2e8f0; /* text-gray-200 */
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+        .container-card {
+            background-color: #2d3748; /* bg-gray-700 */
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border: 1px solid #4a5568;
+        }
+        .input-area, .output-area {
+            min-height: 150px;
+            resize: vertical;
+            background-color: #1a202c; /* bg-gray-900 */
+            border: 1px solid #4a5568;
+            color: #48bb78; /* text-green-400 */
+        }
+        .btn-primary {
+            background-color: #48bb78; /* bg-green-500 */
+            color: #1a202c; /* text-gray-900 */
+        }
+        .btn-primary:hover {
+            background-color: #38a169; /* bg-green-600 */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-4xl container-card p-6 md:p-8 space-y-6">
+
+        <h1 class="text-3xl font-bold text-center text-white border-b border-gray-600 pb-3">
+            Cyber Utility Kit (Encode & Hash)
+        </h1>
+        
+        <!-- SÉLECTION DE L'OPÉRATION -->
+        <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
+            
+            <!-- Sélecteur d'opération -->
+            <select id="operationSelector" class="w-full md:w-auto p-3 rounded-lg bg-gray-800 text-white border border-gray-600 focus:ring-green-500 focus:border-green-500 transition duration-300">
+                <option value="base64Encode">Base64 Encoder</option>
+                <option value="base64Decode">Base64 Decoder</option>
+                <option value="urlEncode">URL Encoder (%XX)</option>
+                <option value="urlDecode">URL Decoder</option>
+                <option value="sha256Hash">SHA-256 Hasher (unidirectionnel)</option>
+            </select>
+            
+            <!-- Bouton d'exécution -->
+            <button id="executeButton" onclick="traiterDonnees()"
+                    class="w-full md:w-auto btn-primary font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 transform hover:scale-[1.02] uppercase tracking-wider text-sm">
+                Exécuter l'Opération
+            </button>
+            
+            <!-- Message de statut/erreur -->
+            <div id="status" class="text-red-400 font-semibold hidden"></div>
+        </div>
+
+        <!-- ZONE D'ENTRÉE -->
+        <div class="space-y-2">
+            <label for="inputData" class="text-gray-400 block text-sm font-medium">Données à traiter (Input)</label>
+            <textarea id="inputData" placeholder="Entrez la chaîne de caractères, le payload ou le hachage ici..."
+                      class="w-full p-4 rounded-lg input-area focus:ring-green-500 focus:border-green-500 text-sm"
+                      onkeydown="if(event.ctrlKey && event.key === 'Enter') traiterDonnees()"></textarea>
+        </div>
+
+        <!-- ZONE DE SORTIE -->
+        <div class="space-y-2">
+            <label for="outputResult" class="text-gray-400 block text-sm font-medium">Résultat (Output)</label>
+            <textarea id="outputResult" readonly placeholder="Le résultat apparaîtra ici."
+                      class="w-full p-4 rounded-lg output-area focus:ring-green-500 focus:border-green-500 text-sm"></textarea>
+        </div>
+
+    </div>
+
+    <script>
+        // Éléments du DOM
+        const inputData = document.getElementById('inputData');
+        const outputResult = document.getElementById('outputResult');
+        const operationSelector = document.getElementById('operationSelector');
+        const statusDiv = document.getElementById('status');
+        const executeButton = document.getElementById('executeButton');
+
+        /**
+         * Affiche un message d'état temporaire.
+         * @param {string} message - Message à afficher.
+         * @param {boolean} estErreur - Vrai si c'est une erreur.
+         */
+        function afficherStatut(message, estErreur = false) {
+            statusDiv.textContent = message;
+            statusDiv.className = estErreur ? 'text-red-400 font-semibold' : 'text-yellow-400 font-semibold';
+            statusDiv.classList.remove('hidden');
+            setTimeout(() => statusDiv.classList.add('hidden'), 5000);
+        }
+
+        // --- FONCTIONS D'ENCODAGE / DÉCODAGE ---
+
+        /** Encode une chaîne en Base64. */
+        function encoderBase64(str) {
+            try {
+                // Utilise encodeURIComponent pour gérer correctement les caractères UTF-8
+                return btoa(unescape(encodeURIComponent(str)));
+            } catch (e) {
+                afficherStatut("Erreur d'encodage Base64: " + e.message, true);
+                return '';
+            }
+        }
+
+        /** Décode une chaîne Base64. */
+        function decoderBase64(str) {
+            try {
+                // Utilise decodeURIComponent pour revenir aux caractères UTF-8 originaux
+                return decodeURIComponent(escape(atob(str)));
+            } catch (e) {
+                afficherStatut("Erreur de décodage Base64. Assurez-vous que l'entrée est valide.", true);
+                return '';
+            }
+        }
+
+        /** Encode une chaîne pour l'URL (pourcent-encoding). */
+        function encoderURL(str) {
+            return encodeURIComponent(str);
+        }
+
+        /** Décode une chaîne encodée en URL. */
+        function decoderURL(str) {
+            try {
+                return decodeURIComponent(str);
+            } catch (e) {
+                afficherStatut("Erreur de décodage URL. Caractères d'échappement invalides.", true);
+                return '';
+            }
+        }
+
+        /**
+         * Calcule le hachage SHA-256 d'une chaîne.
+         * @param {string} message - La chaîne à hacher.
+         * @returns {Promise<string>} - Le hachage en hexadécimal.
+         */
+        async function hacherSha256(message) {
+            try {
+                // Convertit la chaîne en ArrayBuffer
+                const msgUint8 = new TextEncoder().encode(message); 
+                // Hache l'ArrayBuffer à l'aide de l'API Crypto
+                const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8); 
+                // Convertit l'ArrayBuffer en chaîne hexadécimale
+                const hashArray = Array.from(new Uint8Array(hashBuffer)); 
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                return hashHex;
+            } catch (e) {
+                afficherStatut("Erreur de hachage SHA-256. Consultez la console pour plus de détails.", true);
+                console.error("Erreur de Hachage:", e);
+                return '';
+            }
+        }
+
+        // --- LOGIQUE PRINCIPALE ---
+
+        /** Exécute l'opération sélectionnée. */
+        async function traiterDonnees() {
+            const input = inputData.value.trim();
+            const operation = operationSelector.value;
+            outputResult.value = ''; // Réinitialise la sortie
+            statusDiv.classList.add('hidden'); // Cache le statut précédent
+
+            if (!input) {
+                afficherStatut("Veuillez entrer des données à traiter.", true);
+                return;
+            }
+
+            executeButton.disabled = true;
+            executeButton.textContent = "Traitement...";
+
+            let result = '';
+
+            try {
+                switch (operation) {
+                    case 'base64Encode':
+                        result = encoderBase64(input);
+                        break;
+                    case 'base64Decode':
+                        result = decoderBase64(input);
+                        break;
+                    case 'urlEncode':
+                        result = encoderURL(input);
+                        break;
+                    case 'urlDecode':
+                        result = decoderURL(input);
+                        break;
+                    case 'sha256Hash':
+                        // Attendre le résultat de la fonction asynchrone
+                        result = await hacherSha256(input); 
+                        break;
+                    default:
+                        afficherStatut("Opération inconnue.", true);
+                        break;
+                }
+            } catch (e) {
+                afficherStatut("Une erreur critique est survenue: " + e.message, true);
+                console.error(e);
+            } finally {
+                outputResult.value = result;
+                executeButton.disabled = false;
+                executeButton.textContent = "Exécuter l'Opération";
+            }
+        }
+    </script>
+</body>
+</html>
